@@ -1,0 +1,2409 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>课堂加分管理系统</title>
+    <!-- Supabase 客户端库 -->
+    <!-- Supabase 客户端库 - 使用具体版本号 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: #f5f7fa;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* 头部样式 */
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        select,
+        input[type="text"],
+        input[type="number"],
+        button {
+            padding: 8px 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        select:focus,
+        input:focus {
+            outline: none;
+            border-color: #4CAF50;
+            box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+        }
+
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        button:hover {
+            background: #45a049;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        /* 统计信息样式 */
+        .stats {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .stat-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+
+        .stat-card h3 {
+            font-size: 14px;
+            color: #6c757d;
+            margin-bottom: 8px;
+            font-weight: normal;
+        }
+
+        .stat-card .value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .stat-card .detail {
+            font-size: 12px;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+
+        /* 表格样式 */
+        .table-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: #f8f9fa;
+            padding: 15px 10px;
+            text-align: left;
+            font-weight: 600;
+            color: #495057;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        td {
+            padding: 12px 10px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        /* 加减分按钮样式 */
+        .score-cell {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .score-value {
+            min-width: 40px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .score-btn {
+            width: 28px;
+            height: 28px;
+            padding: 0;
+            font-size: 16px;
+            line-height: 1;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .score-btn.plus {
+            background: #28a745;
+        }
+
+        .score-btn.plus:hover {
+            background: #218838;
+        }
+
+        .score-btn.minus {
+            background: #dc3545;
+        }
+
+        .score-btn.minus:hover {
+            background: #c82333;
+        }
+
+        /* 组别标签样式 */
+        .group-tag {
+            display: inline-block;
+            padding: 4px 10px;
+            background: #e3f2fd;
+            color: #1976d2;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        /* 分数状态样式 */
+        .score-value.high {
+            color: #28a745;
+        }
+
+        .score-value.medium {
+            color: #ffc107;
+        }
+
+        .score-value.low {
+            color: #dc3545;
+        }
+
+        .score-value.negative {
+            color: #dc3545;
+            font-weight: bold;
+        }
+
+        /* 快速加分模式 */
+        .quick-mode {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #2196F3;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 50px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .quick-mode:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .quick-mode.active {
+            background: #f44336;
+        }
+
+        /* 模态框样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            font-size: 20px;
+            color: #2c3e50;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #495057;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+        }
+
+        .modal-footer {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .control-group {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .table-container {
+                overflow-x: auto;
+            }
+
+            table {
+                min-width: 600px;
+            }
+
+            .stats {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* 加载动画 */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c757d;
+        }
+
+        .empty-state h3 {
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+
+        /* 打印样式 */
+        @media print {
+
+            .controls,
+            .quick-mode,
+            .score-btn {
+                display: none !important;
+            }
+
+            body {
+                background: white;
+            }
+
+            .container {
+                max-width: 100%;
+            }
+        }
+
+        /* 动画效果 */
+        @keyframes scoreChange {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.2);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .score-value.changing {
+            animation: scoreChange 0.3s ease;
+        }
+
+        /* 提示信息 */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 4px;
+            display: none;
+            z-index: 2000;
+        }
+
+        .toast.show {
+            display: block;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translate(-50%, 100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translate(-50%, 0);
+                opacity: 1;
+            }
+        }
+
+        /* 同步按钮样式 */
+        .btn-sync {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .btn-sync:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- 头部控制区 -->
+        <div class="header">
+            <h1>课堂加分管理系统</h1>
+            <p style="color: #666; font-size: 14px; margin-top: -10px;">支持Excel导入导出 · 数据自动保存</p>
+            <div class="controls">
+                <div class="control-group">
+                    <label>班级：</label>
+                    <select id="classSelect" onchange="switchClass()">
+                        <option value="class1">计算机2401班</option>
+                        <option value="class2">计算机2402班</option>
+                        <option value="class3">计算机2403班</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label>筛选组别：</label>
+                    <select id="groupFilter" onchange="filterTable()">
+                        <option value="">全部组别</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label>搜索：</label>
+                    <input type="text" id="searchInput" placeholder="姓名或学号" onkeyup="filterTable()">
+                </div>
+
+                <div class="control-group">
+                    <label>加分值：</label>
+                    <input type="number" id="scoreStep" value="1" min="0.5" max="10" step="0.5" style="width: 80px;">
+                </div>
+
+                <button onclick="showAddStudentModal()">添加学生</button>
+                <button onclick="showExportMenu()" class="btn-secondary">导出数据</button>
+                <button onclick="showImportInfo()" class="btn-secondary">导入数据</button>
+                <button onclick="printReport()" class="btn-secondary">打印</button>
+            </div>
+            <div class="action-buttons">
+                <button id="exportBtn" class="btn">导出Excel</button>
+                <button id="importBtn" class="btn">导入Excel</button>
+                <input type="file" id="fileInput" accept=".xlsx,.xls" style="display: none;">
+                <button id="syncBtn" class="btn btn-sync">同步到云端</button>
+                <button id="checkSyncBtn" class="btn btn-secondary">检查同步状态</button>
+                <button id="resetBtn" class="btn btn-danger">重置分数</button>
+                <button id="saveBtn" class="btn btn-primary">保存数据</button>
+            </div>
+        </div>
+
+        <!-- 统计信息区 -->
+        <div class="stats" id="statsContainer">
+            <!-- 统计信息将通过JS动态生成 -->
+        </div>
+
+        <!-- 表格区域 -->
+        <div class="table-container">
+            <table id="scoreTable">
+                <thead>
+                    <tr>
+                        <th style="width: 50px;">序号</th>
+                        <th style="width: 120px;">学号</th>
+                        <th style="width: 100px;">姓名</th>
+                        <th style="width: 150px;">平时总分<br><small>(50分满)</small></th>
+                        <th style="width: 150px;">小组活动<br><small>(30分满)</small></th>
+                        <th style="width: 150px;">课堂表现<br><small>(20分满)</small></th>
+                        <th style="width: 100px;">组别</th>
+                        <th style="width: 80px;">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <!-- 表格内容将通过JS动态生成 -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 快速加分模式按钮 -->
+    <div class="quick-mode" onclick="toggleQuickMode()">
+        <span id="quickModeText">快速加分模式</span>
+    </div>
+
+    <!-- 添加学生模态框 -->
+    <div class="modal" id="addStudentModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>添加学生</h2>
+            </div>
+            <div class="form-group">
+                <label>学号：</label>
+                <input type="text" id="newStudentId" placeholder="请输入学号">
+            </div>
+            <div class="form-group">
+                <label>姓名：</label>
+                <input type="text" id="newStudentName" placeholder="请输入姓名">
+            </div>
+            <div class="form-group">
+                <label>组别：</label>
+                <select id="newStudentGroup">
+                    <option value="">请选择组别</option>
+                </select>
+            </div>
+            <div class="modal-footer">
+                <button onclick="closeModal('addStudentModal')" class="btn-secondary">取消</button>
+                <button onclick="addStudent()">添加</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 导出选项模态框 -->
+    <div class="modal" id="exportModal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h2>选择导出格式</h2>
+            </div>
+            <div style="display: grid; gap: 15px;">
+                <button onclick="exportToExcel()" style="padding: 15px; font-size: 16px; background: #28a745;">
+                    📊 导出为 Excel (CSV格式)
+                </button>
+                <button onclick="exportToJSON()" style="padding: 15px; font-size: 16px; background: #6c757d;">
+                    📄 导出为 JSON (备份格式)
+                </button>
+                <button onclick="exportCurrentClassExcel()"
+                    style="padding: 15px; font-size: 16px; background: #17a2b8;">
+                    📋 仅导出当前班级 (Excel)
+                </button>
+            </div>
+            <div class="modal-footer" style="margin-top: 20px;">
+                <button onclick="closeModal('exportModal')" class="btn-secondary">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 导入选项模态框 -->
+    <div class="modal" id="importModal">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header">
+                <h2>导入数据</h2>
+            </div>
+            <div style="margin-bottom: 20px; color: #666; line-height: 1.6;">
+                <p><strong>支持的文件格式：</strong></p>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li><strong>Excel/CSV文件：</strong>从本系统导出的CSV文件，或按相同格式整理的Excel文件（另存为CSV）</li>
+                    <li><strong>JSON文件：</strong>系统备份文件，包含所有班级的完整数据</li>
+                </ul>
+                <p style="margin-top: 15px; padding: 10px; background: #fff3cd; border-radius: 5px; color: #856404;">
+                    ⚠️ 导入CSV时，数据将更新到当前选中的班级
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button onclick="closeModal('importModal')" class="btn-secondary">取消</button>
+                <button onclick="importData()" style="background: #17a2b8;">选择文件</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 提示信息 -->
+    <div class="toast" id="toast"></div>
+
+    <!-- 导入文件input（隐藏） -->
+    <input type="file" id="importFile" style="display: none;" accept=".json,.csv" onchange="handleImport(event)">
+
+    <script>
+        // 全局变量
+        let currentClass = 'class1';
+        let quickMode = false;
+        let students = {};
+        let supabaseClient = null;
+        
+        // 初始化班级数据结构
+        const classData = {
+            class1: [],
+            class2: [],
+            class3: []
+        };
+
+        // Supabase 配置
+        const SUPABASE_URL = 'https://tgbafseosjbxqdnudgtl.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRnYmFmc2Vvc2pieHFkbnVkZ3RsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg1Nzg3NjYsImV4cCI6MjA2NDE1NDc2Nn0.T-znHPx4xR_wGXejgvFBd_wGRSu1ECsVJ8KkLJbgIwU';
+
+        // 等待 Supabase SDK 加载的函数
+        function waitForSupabase() {
+            return new Promise((resolve) => {
+                const checkInterval = setInterval(() => {
+                    if (window.supabase && typeof window.supabase.createClient === 'function') {
+                        clearInterval(checkInterval);
+                        resolve();
+                    }
+                }, 100);
+
+                // 10秒超时
+                setTimeout(() => {
+                    clearInterval(checkInterval);
+                    resolve();
+                }, 10000);
+            });
+        }
+
+        // 等待 Supabase SDK 加载
+        function waitForSupabase() {
+            return new Promise((resolve, reject) => {
+                // 如果已经加载，直接返回
+                if (window.supabase && typeof window.supabase.createClient === 'function') {
+                    resolve();
+                    return;
+                }
+
+                // 设置最大等待时间（10秒）
+                const maxWaitTime = 10000;
+                const startTime = Date.now();
+
+                // 定期检查是否加载完成
+                const checkInterval = setInterval(() => {
+                    if (window.supabase && typeof window.supabase.createClient === 'function') {
+                        clearInterval(checkInterval);
+                        resolve();
+                    } else if (Date.now() - startTime > maxWaitTime) {
+                        clearInterval(checkInterval);
+                        reject(new Error('Supabase SDK 加载超时'));
+                    }
+                }, 200);
+            });
+        }
+
+        // 初始化 Supabase 客户端
+        async function initSupabase() {
+            try {
+                // 等待 SDK 加载
+                await waitForSupabase();
+
+                if (window.supabase && typeof window.supabase.createClient === 'function') {
+                    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                    console.log('Supabase 初始化成功');
+                    return true;
+                } else {
+                    throw new Error('Supabase SDK 未正确加载');
+                }
+            } catch (error) {
+                console.error('Supabase 初始化失败:', error);
+                showToast('数据库连接失败，将使用本地存储', 'error');
+                return false;
+            }
+        }
+
+        // 添加保存数据函数
+        async function saveData(skipSync = false) {
+            try {
+                // 保存到本地存储
+                const localData = {
+                    students: students,
+                    currentClass: currentClass,
+                    quickMode: quickMode,
+                    lastSaved: new Date().toISOString()
+                };
+                localStorage.setItem('classroomScores_backup', JSON.stringify(localData));
+                console.log('数据已保存到本地存储');
+
+                // 如果设置为跳过同步，只保存到本地
+                if (skipSync) {
+                    showToast('数据已保存到本地', 'success');
+                    return;
+                }
+
+                // 如果 Supabase 可用，同步到数据库
+                if (supabaseClient && students[currentClass]) {
+                    try {
+                        const upsertData = [];
+                        for (const student of students[currentClass]) {
+                            upsertData.push({
+                                class_id: currentClass,
+                                student_id: student.id,
+                                name: student.name,
+                                daily_score: student.daily || 0,
+                                group_score: student.group || 0,
+                                performance_score: student.performance || 0,
+                                team_name: student.team || '未分组'
+                            });
+                        }
+
+                        if (upsertData.length > 0) {
+                            console.log('尝试同步', upsertData.length, '条数据到数据库');
+                            
+                            // 首先测试连接
+                            const testResult = await supabaseClient
+                                .from('class_scores')
+                                .select('count(*)', { count: 'exact' })
+                                .limit(1);
+                            
+                            if (testResult.error) {
+                                throw new Error('数据库连接测试失败: ' + testResult.error.message);
+                            }
+
+                            // 执行同步
+                            const { error } = await supabaseClient
+                                .from('class_scores')
+                                .upsert(upsertData, {
+                                    onConflict: 'class_id, student_id',
+                                    returning: 'minimal'
+                                });
+
+                            if (error) {
+                                // 检查是否是 RLS 错误
+                                if (error.message && error.message.includes('policy')) {
+                                    throw new Error('数据库行级安全策略(RLS)限制，请使用同步到云端按钮');
+                                }
+                                throw error;
+                            }
+
+                            // 更新同步状态
+                            localStorage.setItem('lastSyncTime', new Date().toISOString());
+                            showToast('数据已保存并同步到云端', 'success');
+                            console.log('同步成功:', upsertData.length, '条数据');
+                        } else {
+                            showToast('数据已保存到本地（无数据需要同步）', 'success');
+                        }
+                    } catch (syncError) {
+                        console.error('同步到数据库失败:', syncError);
+                        showToast('数据已保存到本地，但同步失败: ' + syncError.message, 'warning');
+                        // 记录同步状态
+                        localStorage.setItem('syncFailed', 'true');
+                        localStorage.setItem('syncErrorMessage', syncError.message);
+                    }
+                } else {
+                    if (!supabaseClient) {
+                        console.log('Supabase 客户端未初始化，只保存到本地');
+                    }
+                    showToast('数据已保存到本地', 'success');
+                }
+            } catch (error) {
+                console.error('保存数据失败:', error);
+                showToast('保存失败: ' + error.message, 'error');
+                
+                // 尝试紧急备份
+                try {
+                    const emergencyBackup = JSON.stringify(students);
+                    localStorage.setItem('classroomScores_emergency', emergencyBackup);
+                    console.log('已创建紧急备份');
+                } catch (backupError) {
+                    console.error('创建紧急备份失败:', backupError);
+                }
+            }
+        }
+
+        // 加载数据函数
+        async function loadData() {
+            try {
+                // 优先从 Supabase 加载
+                if (supabaseClient) {
+                    showToast('正在从云端加载数据...', 'info');
+                    const { data, error } = await supabaseClient
+                        .from('class_scores')
+                        .select('*')
+                        .eq('class_id', currentClass);
+
+                    if (error) {
+                        console.error('从数据库加载数据失败:', error);
+                        throw error;
+                    }
+
+                    if (data && data.length > 0) {
+                        // 将数据库数据转换为应用格式
+                        const formattedData = data.map(item => ({
+                            id: item.student_id,
+                            name: item.name,
+                            daily: item.daily_score,
+                            group: item.group_score,
+                            performance: item.performance_score,
+                            team: item.team_name
+                        }));
+                        
+                        students[currentClass] = formattedData;
+                        console.log('从 Supabase 加载了', formattedData.length, '条数据');
+                        showToast(`从云端成功加载 ${formattedData.length} 条数据`, 'success');
+                        return;
+                    } else {
+                        console.log('云端没有班级', currentClass, '的数据');
+                    }
+                } else {
+                    console.log('Supabase 客户端未初始化，无法从云端加载');
+                }
+
+                // 如果云端没有数据，尝试从本地存储加载
+                const localData = localStorage.getItem('classroomScores_backup');
+                if (localData) {
+                    const parsedData = JSON.parse(localData);
+                    if (parsedData.students && parsedData.students[currentClass] && parsedData.students[currentClass].length > 0) {
+                        students[currentClass] = parsedData.students[currentClass];
+                        console.log('从本地存储加载了', students[currentClass].length, '条数据');
+                        showToast(`从本地存储加载了 ${students[currentClass].length} 条数据`, 'info');
+                        
+                        // 如果有本地数据但云端没有，尝试同步到云端
+                        if (supabaseClient) {
+                            try {
+                                showToast('正在尝试同步本地数据到云端...', 'info');
+                                await syncToDatabase();
+                            } catch (syncError) {
+                                console.error('同步失败:', syncError);
+                                showToast('同步到云端失败: ' + syncError.message, 'warning');
+                            }
+                        }
+                        return;
+                    }
+                }
+
+                // 如果没有云端和本地数据，创建空数据集
+                students[currentClass] = [];
+                console.log('创建了空数据集，请导入表格');
+                showToast('请点击“导入Excel”按钮上传班级数据', 'info');
+                
+            } catch (error) {
+                console.error('加载数据失败:', error);
+                showToast('加载数据失败: ' + error.message, 'error');
+                
+                // 出错时创建空数据集
+                students[currentClass] = [];
+                showToast('创建了空班级，请导入数据', 'warning');
+            }
+        }
+
+        // 添加切换班级函数
+        async function switchClass() {
+            const select = document.getElementById('classSelect');
+            currentClass = select.value;
+            await loadData();
+            renderTable();
+            updateStats();
+            updateGroupFilter();
+        }
+
+        // 从 Excel 导入数据
+        async function importFromExcel(file) {
+            try {
+                showToast('正在处理 Excel 文件...', 'info');
+                console.log('开始导入 Excel 文件:', file.name);
+                
+                const reader = new FileReader();
+
+                reader.onload = async function (e) {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        console.log('文件大小:', data.length, '字节');
+                        
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        console.log('工作表数量:', workbook.SheetNames.length);
+
+                        // 获取第一个工作表
+                        const firstSheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[firstSheetName];
+                        console.log('使用工作表:', firstSheetName);
+
+                        // 将工作表转换为 JSON
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                        console.log('读取到', jsonData.length, '行数据');
+
+                        if (jsonData.length < 2) {
+                            throw new Error('Excel 文件不包含有效数据');
+                        }
+
+                        // 获取列标题
+                        const headers = jsonData[0];
+                        console.log('读取到列标题:', headers);
+
+                        // 检查必要的列
+                        const requiredColumns = ['学号', '姓名', '平时分', '小组分', '课堂分', '组别'];
+                        const columnIndices = {};
+
+                        for (const col of requiredColumns) {
+                            const index = headers.findIndex(h => h === col);
+                            if (index === -1) {
+                                console.error('缺少必要列:', col);
+                                console.log('实际列标题:', headers);
+                                throw new Error(`缺少必要的列: ${col}`);
+                            }
+                            columnIndices[col] = index;
+                            console.log(`找到列 '${col}' 在索引 ${index}`);
+                        }
+
+                        // 处理数据行
+                        const importedStudents = [];
+                        const skippedRows = [];
+                        
+                        for (let i = 1; i < jsonData.length; i++) {
+                            const row = jsonData[i];
+                            if (!row || row.length <= Math.max(...Object.values(columnIndices))) {
+                                skippedRows.push(i + 1); // Excel 行号从 1 开始
+                                continue; // 跳过不完整的行
+                            }
+
+                            const studentId = String(row[columnIndices['学号']]);
+                            if (!studentId) {
+                                skippedRows.push(i + 1);
+                                continue; // 跳过没有学号的行
+                            }
+
+                            // 处理数值列，确保是有效数字
+                            let daily = 0, group = 0, performance = 0;
+                            
+                            try {
+                                daily = parseFloat(row[columnIndices['平时分']]);
+                                if (isNaN(daily)) daily = 0;
+                            } catch (e) { daily = 0; }
+                            
+                            try {
+                                group = parseFloat(row[columnIndices['小组分']]);
+                                if (isNaN(group)) group = 0;
+                            } catch (e) { group = 0; }
+                            
+                            try {
+                                performance = parseFloat(row[columnIndices['课堂分']]);
+                                if (isNaN(performance)) performance = 0;
+                            } catch (e) { performance = 0; }
+
+                            const student = {
+                                id: studentId,
+                                name: row[columnIndices['姓名']] || '',
+                                daily: daily,
+                                group: group,
+                                performance: performance,
+                                team: row[columnIndices['组别']] || '未分组'
+                            };
+
+                            importedStudents.push(student);
+                        }
+
+                        if (importedStudents.length === 0) {
+                            throw new Error('没有找到有效的学生数据');
+                        }
+
+                        console.log('成功导入', importedStudents.length, '条学生数据');
+                        if (skippedRows.length > 0) {
+                            console.log('跳过了', skippedRows.length, '行无效数据，行号:', skippedRows);
+                        }
+
+                        // 更新当前班级的学生数据
+                        students[currentClass] = importedStudents;
+
+                        // 保存到本地存储，先跳过自动同步
+                        await saveData(true);
+                        
+                        // 重新渲染表格和统计信息
+                        renderTable();
+                        updateStats();
+                        updateGroupFilter();
+
+                        showToast(`成功导入 ${importedStudents.length} 条学生数据`, 'success');
+                        
+                        // 尝试同步到数据库
+                        try {
+                            if (supabaseClient) {
+                                showToast('正在同步到云端...', 'info');
+                                await syncToDatabase();
+                            } else {
+                                showToast('数据已保存到本地，但未同步到云端（数据库未连接）', 'warning');
+                            }
+                        } catch (syncError) {
+                            console.error('导入后同步失败:', syncError);
+                            showToast('数据已导入并保存到本地，但同步失败: ' + syncError.message, 'warning');
+                        }
+                    } catch (error) {
+                        console.error('Excel 数据处理错误:', error);
+                        showToast('导入失败: ' + error.message, 'error');
+                    }
+                };
+
+                reader.onerror = function () {
+                    console.error('读取文件失败');
+                    showToast('读取文件失败', 'error');
+                };
+
+                reader.readAsArrayBuffer(file);
+            } catch (error) {
+                console.error('导入失败:', error);
+                showToast('导入失败: ' + error.message, 'error');
+            }
+        }
+
+        // 重置分数函数
+        async function resetScores() {
+            if (!confirm('确定要重置所有学生的分数吗？这将把平时分、小组分和课堂分都设为0。')) {
+                return;
+            }
+
+            try {
+                if (students[currentClass] && students[currentClass].length > 0) {
+                    for (const student of students[currentClass]) {
+                        student.daily = 0;
+                        student.group = 0;
+                        student.performance = 0;
+                    }
+
+                    // 保存到数据库和本地存储
+                    await saveData();
+
+                    // 重新渲染表格和统计信息
+                    renderTable();
+                    updateStats();
+
+                    showToast('所有学生分数已重置为0', 'success');
+                } else {
+                    showToast('当前班级没有学生数据', 'warning');
+                }
+            } catch (error) {
+                console.error('重置分数失败:', error);
+                showToast('重置分数失败: ' + error.message, 'error');
+            }
+        }
+
+        // 导出数据到Excel
+        function exportToExcel() {
+            try {
+                if (!students[currentClass] || students[currentClass].length === 0) {
+                    showToast('当前班级没有数据可导出', 'warning');
+                    return;
+                }
+
+                // 准备导出数据
+                const exportData = students[currentClass].map(student => ({
+                    '学号': student.id,
+                    '姓名': student.name,
+                    '平时分': student.daily || 0,
+                    '小组分': student.group || 0,
+                    '课堂分': student.performance || 0,
+                    '总分': (student.daily || 0) + (student.group || 0) + (student.performance || 0),
+                    '组别': student.team || '未分组'
+                }));
+
+                // 创建workbook和worksheet
+                const wb = XLSX.utils.book_new();
+                const ws = XLSX.utils.json_to_sheet(exportData);
+
+                // 添加worksheet到workbook
+                XLSX.utils.book_append_sheet(wb, ws, currentClass);
+
+                // 生成Excel文件并下载
+                const filename = `班级成绩_${currentClass}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+                XLSX.writeFile(wb, filename);
+
+                showToast(`成功导出 ${exportData.length} 条学生数据`, 'success');
+            } catch (error) {
+                console.error('导出失败:', error);
+                showToast('导出失败: ' + error.message, 'error');
+            }
+        }
+
+        // 同步数据到云端
+        async function syncToDatabase() {
+            try {
+                if (!supabaseClient) {
+                    // 尝试重新初始化 Supabase
+                    const initialized = await initSupabase();
+                    if (!initialized) {
+                        throw new Error('Supabase 未初始化，无法同步');
+                    }
+                }
+
+                if (!students[currentClass] || students[currentClass].length === 0) {
+                    showToast('当前班级没有数据可同步', 'warning');
+                    return;
+                }
+
+                showToast('正在同步数据...', 'info');
+
+                // 准备要同步的数据
+                const upsertData = [];
+                for (const student of students[currentClass]) {
+                    upsertData.push({
+                        class_id: currentClass,
+                        student_id: student.id,
+                        name: student.name,
+                        daily_score: student.daily || 0,
+                        group_score: student.group || 0,
+                        performance_score: student.performance || 0,
+                        team_name: student.team || '未分组'
+                    });
+                }
+
+                // 测试连接
+                const testResult = await supabaseClient
+                    .from('class_scores')
+                    .select('count(*)', { count: 'exact' })
+                    .limit(1);
+
+                if (testResult.error) {
+                    console.error('测试数据库连接失败:', testResult.error);
+                    throw new Error('数据库连接测试失败: ' + testResult.error.message);
+                }
+
+                console.log('测试连接成功，开始同步数据...');
+
+                // 执行同步
+                const { data, error } = await supabaseClient
+                    .from('class_scores')
+                    .upsert(upsertData, {
+                        onConflict: 'class_id, student_id',
+                        returning: 'minimal'
+                    });
+
+                if (error) {
+                    // 检查是否是 RLS 错误
+                    if (error.message && error.message.includes('policy')) {
+                        throw new Error('数据库行级安全策略(RLS)限制，请联系管理员禁用 RLS');
+                    }
+                    throw error;
+                }
+
+                // 更新同步状态
+                localStorage.setItem('lastSyncTime', new Date().toISOString());
+                showToast(`成功同步 ${upsertData.length} 条数据到云端`, 'success');
+                console.log('同步成功:', upsertData.length, '条数据');
+            } catch (error) {
+                console.error('同步失败:', error);
+                showToast('同步失败: ' + error.message, 'error');
+            }
+        }
+
+        // 检查同步状态
+        async function checkSyncStatus() {
+            try {
+                if (!supabaseClient) {
+                    showToast('Supabase 未初始化，无法检查同步状态', 'warning');
+                    return;
+                }
+
+                // 获取上次同步时间
+                const lastSyncTime = localStorage.getItem('lastSyncTime');
+                if (!lastSyncTime) {
+                    showToast('数据从未同步到云端', 'warning');
+                    return;
+                }
+
+                // 检查数据库连接
+                const { data, error, count } = await supabaseClient
+                    .from('class_scores')
+                    .select('count(*)', { count: 'exact' })
+                    .eq('class_id', currentClass);
+
+                if (error) {
+                    throw new Error('无法连接到数据库: ' + error.message);
+                }
+
+                // 检查本地和云端数据数量
+                const localCount = students[currentClass] ? students[currentClass].length : 0;
+                const dbCount = count || 0;
+
+                const lastSyncDate = new Date(lastSyncTime);
+                const formattedDate = lastSyncDate.toLocaleString();
+
+                if (localCount === dbCount) {
+                    showToast(`数据已同步。上次同步: ${formattedDate}`, 'success');
+                } else {
+                    showToast(`数据不同步。本地: ${localCount} 条，云端: ${dbCount} 条`, 'warning');
+                }
+
+                console.log('同步状态:', {
+                    lastSync: formattedDate,
+                    localCount,
+                    dbCount
+                });
+            } catch (error) {
+                console.error('检查同步状态失败:', error);
+                showToast('检查失败: ' + error.message, 'error');
+            }
+        }
+
+        // 测试数据库连接
+        async function testDatabaseConnection() {
+            try {
+                if (!supabaseClient) {
+                    await initSupabase();
+                    if (!supabaseClient) {
+                        throw new Error('Supabase 初始化失败');
+                    }
+                }
+
+                console.log('测试数据库连接...');
+
+                // 测试读取
+                const readTest = await supabaseClient
+                    .from('class_scores')
+                    .select('*')
+                    .limit(1);
+
+                console.log('读取测试:', readTest);
+
+                // 测试写入
+                const writeTest = await supabaseClient
+                    .from('class_scores')
+                    .upsert({
+                        class_id: 'test',
+                        student_id: 'test123',
+                        name: '测试学生',
+                        daily_score: 10,
+                        group_score: 10,
+                        performance_score: 10,
+                        team_name: '测试组'
+                    });
+
+                console.log('写入测试:', writeTest);
+
+                if (readTest.error || writeTest.error) {
+                    throw new Error(readTest.error ? readTest.error.message : writeTest.error.message);
+                }
+
+                showToast('数据库连接测试成功', 'success');
+                return true;
+            } catch (error) {
+                console.error('数据库连接测试失败:', error);
+                showToast('数据库连接测试失败: ' + error.message, 'error');
+                return false;
+            }
+        }
+
+        // 页面初始化
+        async function initApp() {
+            try {
+                // 初始化 Supabase
+                const supabaseInitialized = await initSupabase();
+                console.log('Supabase 初始化状态:', supabaseInitialized);
+
+                // 加载数据
+                await loadData();
+
+                // 渲染表格和统计信息
+                renderTable();
+                updateStats();
+                updateGroupFilter();
+
+                // 绑定事件处理程序
+                document.getElementById('classSelect').addEventListener('change', switchClass);
+                document.getElementById('importBtn').addEventListener('click', () => document.getElementById('fileInput').click());
+                document.getElementById('fileInput').addEventListener('change', (e) => {
+                    if (e.target.files.length > 0) {
+                        importFromExcel(e.target.files[0]);
+                        e.target.value = ''; // 重置文件输入，允许重复选择同一文件
+                    }
+                });
+                document.getElementById('exportBtn').addEventListener('click', exportToExcel);
+                document.getElementById('resetBtn').addEventListener('click', resetScores);
+                document.getElementById('saveBtn').addEventListener('click', saveData);
+                document.getElementById('syncBtn').addEventListener('click', syncToDatabase);
+                document.getElementById('checkSyncBtn').addEventListener('click', checkSyncStatus);
+                document.getElementById('groupFilter').addEventListener('change', filterByGroup);
+
+                // 设置定时自动保存
+                setInterval(saveData, 300000); // 每5分钟自动保存
+
+                console.log('应用初始化完成');
+            } catch (error) {
+                console.error('应用初始化失败:', error);
+                showToast('初始化失败: ' + error.message, 'error');
+            }
+        }
+
+        // 页面加载完成后初始化应用
+        window.addEventListener('DOMContentLoaded', initApp);
+
+        // 初始化班级数据结构
+        const classData = {
+            class1: [],
+            class2: [],
+            class3: []
+        };
+
+        // 初始化
+        async function init() {
+            try {
+                // 初始化 Supabase 客户端
+                initSupabase();
+
+                await loadData();
+                setupRealtimeUpdates();
+                updateGroupFilter();
+                renderTable();
+                updateStats();
+            } catch (error) {
+                console.error('初始化失败:', error);
+                showToast('初始化失败: ' + error.message, 'error');
+
+                // 尝试从本地存储加载数据
+                loadFromLocalStorage();
+                renderTable();
+                updateStats();
+                updateGroupFilter();
+            }
+        }
+
+        // 从本地存储加载数据
+        function loadFromLocalStorage() {
+            try {
+                const savedData = localStorage.getItem('classroomScores_backup');
+                if (savedData) {
+                    const data = JSON.parse(savedData);
+                    if (data.students && data.students[currentClass]) {
+                        students[currentClass] = data.students[currentClass];
+                    } else if (data.students) {
+                        students = data.students || {};
+                    } else {
+                        students[currentClass] = [];
+                    }
+                    currentClass = data.currentClass || currentClass;
+                    quickMode = data.quickMode || false;
+
+                    document.getElementById('classSelect').value = currentClass;
+                    showToast('已加载本地备份数据', 'warning');
+                } else {
+                    students[currentClass] = [];
+                    showToast('无本地备份。使用默认数据。', 'warning');
+                }
+            } catch (e) {
+                console.error('加载本地存储失败:', e);
+                students[currentClass] = [];
+            }
+        }
+
+        // 设置实时更新
+        function setupRealtimeUpdates() {
+            // 检查 Supabase 客户端是否可用
+            if (!supabaseClient) {
+                console.warn('无法设置实时更新：Supabase 客户端未初始化');
+                return;
+            }
+
+            try {
+                // 订阅class_scores表的变更
+                const subscription = supabaseClient
+                    .channel('class_scores_changes')
+                    .on('postgres_changes',
+                        {
+                            event: '*',
+                            schema: 'public',
+                            table: 'class_scores'
+                        },
+                        async (payload) => {
+                            console.log('数据库变更:', payload);
+                            // 重新加载数据以获取最新状态
+                            await loadData();
+                            renderTable();
+                            updateStats();
+                            updateGroupFilter();
+                        }
+                    )
+                    .subscribe();
+
+                // 在页面卸载时取消订阅
+                window.addEventListener('beforeunload', () => {
+                    if (supabaseClient) {
+                        supabaseClient.removeChannel(subscription);
+                    }
+                });
+            } catch (error) {
+                console.error('设置实时更新失败:', error);
+            }
+        }
+
+        // 从Supabase加载数据
+        async function loadData() {
+            try {
+                showToast('正在加载数据...');
+
+                // 检查 Supabase 客户端是否可用
+                if (!supabaseClient) {
+                    throw new Error('Supabase 客户端未初始化');
+                }
+
+                // 从Supabase获取数据
+                const { data: dbData, error } = await supabaseClient
+                    .from('class_scores')
+                    .select('*')
+                    .eq('class_id', currentClass);
+
+                if (error) throw error; // If there's a DB error, throw it to the catch block
+
+                // Initialize/clear data for the current class
+                students[currentClass] = [];
+
+                if (dbData && dbData.length > 0) {
+                    dbData.forEach(item => {
+                        students[currentClass].push({
+                            id: item.student_id,
+                            name: item.name, // Corrected
+                            daily: item.daily_score || 0,
+                            group: item.group_score || 0,
+                            performance: item.performance_score || 0,
+                            team: item.team_name || '未分组' // Corrected
+                        });
+                    });
+                    showToast('数据加载成功');
+                } else {
+                    // No data for this specific class in the database
+                    showToast(`班级 ${currentClass} 尚无学生数据，可尝试从Excel导入。`, 'info');
+                    // students[currentClass] is already an empty array
+                }
+
+                // Update UI elements
+                document.getElementById('classSelect').value = currentClass;
+
+                // Ensure UI is updated after data load/processing
+                renderTable();
+                updateStats();
+                updateGroupFilter();
+
+            } catch (error) { // This catch block handles DB errors or other errors in the try block
+                console.error('加载数据失败:', error);
+                showToast('加载数据失败: ' + error.message, 'error');
+
+                // 使用本地存储作为后备方案
+                loadFromLocalStorage();
+            }
+        }
+
+        // 渲染表格
+        function renderTable() {
+            const tbody = document.getElementById('tableBody');
+            if (!tbody) return;
+
+            const searchTerm = document.getElementById('searchInput')?.value?.toLowerCase() || '';
+            const groupFilter = document.getElementById('groupFilter')?.value || '';
+
+            const classData = students[currentClass] || [];
+            let filteredData = [...classData];
+
+            // 应用筛选
+            if (searchTerm) {
+                filteredData = filteredData.filter(s =>
+                    s.name.toLowerCase().includes(searchTerm) ||
+                    s.id.includes(searchTerm)
+                );
+            }
+
+            if (groupFilter) {
+                filteredData = filteredData.filter(s => s.team === groupFilter);
+            }
+
+            tbody.innerHTML = filteredData.map((student, index) => {
+                const dailyClass = getScoreClass(student.daily, 50);
+                const groupClass = getScoreClass(student.group, 30);
+                const perfClass = getScoreClass(student.performance, 20);
+
+                return `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${student.id}</td>
+                        <td>${student.name}</td>
+                        <td>
+                            <div class="score-cell">
+                                <button class="score-btn minus" onclick="updateScore('${student.id}', 'daily', -1)">-</button>
+                                <span class="score-value ${dailyClass}" id="daily-${student.id}">${student.daily}</span>
+                                <button class="score-btn plus" onclick="updateScore('${student.id}', 'daily', 1)">+</button>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="score-cell">
+                                <button class="score-btn minus" onclick="updateScore('${student.id}', 'group', -1)">-</button>
+                                <span class="score-value ${groupClass}" id="group-${student.id}">${student.group}</span>
+                                <button class="score-btn plus" onclick="updateScore('${student.id}', 'group', 1)">+</button>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="score-cell">
+                                <button class="score-btn minus" onclick="updateScore('${student.id}', 'performance', -1)">-</button>
+                                <span class="score-value ${perfClass}" id="performance-${student.id}">${student.performance}</span>
+                                <button class="score-btn plus" onclick="updateScore('${student.id}', 'performance', 1)">+</button>
+                            </div>
+                        </td>
+                        <td><span class="group-tag">${student.team}</span></td>
+                        <td>
+                            <button onclick="deleteStudent('${student.id}')" class="btn-danger" style="padding: 5px 10px; font-size: 12px;">删除</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            if (filteredData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="empty-state"><h3>暂无数据</h3><p>请添加学生或切换班级</p></td></tr>';
+            }
+        }
+
+        // 获取分数样式类
+        function getScoreClass(score, max) {
+            if (score < 0) return 'negative';
+            const ratio = score / max;
+            if (ratio >= 0.8) return 'high';
+            if (ratio >= 0.6) return 'medium';
+            return 'low';
+        }
+
+        // 更新分数
+        async function updateScore(studentId, type, delta) {
+            const step = parseFloat(document.getElementById('scoreStep').value) || 1;
+            const actualDelta = delta * step;
+
+            const classData = students[currentClass];
+            const student = classData.find(s => s.id === studentId);
+
+            if (student) {
+                // 更新本地数据
+                student[type] = Math.round((student[type] + actualDelta) * 10) / 10;
+
+                // 添加动画效果
+                const element = document.getElementById(`${type}-${studentId}`);
+                element.classList.add('changing');
+                setTimeout(() => element.classList.remove('changing'), 300);
+
+                // 直接更新到数据库
+                try {
+                    // 检查 Supabase 客户端是否可用
+                    if (!supabaseClient) {
+                        throw new Error('Supabase 客户端未初始化');
+                    }
+
+                    const updatePayload = {
+                        class_id: currentClass,
+                        student_id: studentId,
+                        name: student.name, // Corrected field name
+                        daily_score: student.daily || 0,
+                        group_score: student.group || 0,
+                        performance_score: student.performance || 0,
+                        team_name: student.team || '未分组' // Corrected field name
+                        // updated_at will be handled by the database trigger
+                    };
+
+                    const { data, error } = await supabaseClient
+                        .from('class_scores')
+                        .upsert(updatePayload, {
+                            onConflict: 'class_id, student_id' // Ensure conflict target is a string for Supabase JS v2+
+                        });
+
+                    if (error) {
+                        // If upsert fails, consider reverting local changes or notifying user more clearly
+                        // For now, we'll log the error and show a toast
+                        console.error('保存到数据库失败:', error);
+                        showToast('分数更新同步失败: ' + error.message, 'error');
+                        // Potentially revert local student[type] change here if strict consistency is needed
+                        // student[type] = Math.round((student[type] - actualDelta) * 10) / 10; // Revert
+                        // renderTable(); // Re-render to show reverted score
+                        // updateStats();
+                        return; // Stop further processing for this update if DB save failed
+                    }
+
+                    // If DB update is successful, update local backup
+                    const localData = {
+                        students: students, // students object already reflects the new score
+                        currentClass: currentClass,
+                        quickMode: quickMode,
+                        lastSaved: new Date().toISOString()
+                    };
+                    localStorage.setItem('classroomScores_backup', JSON.stringify(localData));
+                    showToast('分数已同步', 'success'); // Confirmation for successful DB sync
+
+                } catch (error) { // Catch any other unexpected errors during the try block
+                    console.error('更新分数时发生意外错误:', error);
+                    showToast('更新分数时出错: ' + error.message, 'error');
+                }
+
+                renderTable();
+                updateStats();
+
+                if (quickMode) {
+                    showToast(`${student.name} ${type === 'daily' ? '平时分' : type === 'group' ? '小组分' : '课堂分'} ${actualDelta > 0 ? '+' : ''}${actualDelta}`);
+                }
+            }
+        }
+
+        // 更新统计信息
+        function updateStats() {
+            const data = students[currentClass] || [];
+            const container = document.getElementById('statsContainer');
+
+            if (data.length === 0) {
+                container.innerHTML = '<div class="stat-card"><h3>暂无数据</h3></div>';
+                return;
+            }
+
+            // 计算统计数据
+            const stats = {
+                total: data.length,
+                dailyAvg: (data.reduce((sum, s) => sum + s.daily, 0) / data.length).toFixed(1),
+                groupAvg: (data.reduce((sum, s) => sum + s.group, 0) / data.length).toFixed(1),
+                perfAvg: (data.reduce((sum, s) => sum + s.performance, 0) / data.length).toFixed(1),
+                noGroup: data.filter(s => s.group === 0).length,
+                noPerf: data.filter(s => s.performance === 0).length,
+                negative: data.filter(s => s.daily < 0 || s.performance < 0).length
+            };
+
+            container.innerHTML = `
+                <div class="stat-card">
+                    <h3>学生总数</h3>
+                    <div class="value">${stats.total}</div>
+                    <div class="detail">当前班级学生人数</div>
+                </div>
+                <div class="stat-card">
+                    <h3>平时总分</h3>
+                    <div class="value">${stats.dailyAvg}</div>
+                    <div class="detail">平均分 (满分50)</div>
+                </div>
+                <div class="stat-card">
+                    <h3>小组活动</h3>
+                    <div class="value">${stats.groupAvg}</div>
+                    <div class="detail">平均分 (满分30) · 未参与: ${stats.noGroup}人</div>
+                </div>
+                <div class="stat-card">
+                    <h3>课堂表现</h3>
+                    <div class="value">${stats.perfAvg}</div>
+                    <div class="detail">平均分 (满分20) · 未加分: ${stats.noPerf}人</div>
+                </div>
+            `;
+        }
+
+        // 更新组别筛选器
+        function updateGroupFilter() {
+            const data = students[currentClass] || [];
+            const groups = [...new Set(data.map(s => s.team))].sort();
+            const select = document.getElementById('groupFilter');
+
+            select.innerHTML = '<option value="">全部组别</option>' +
+                groups.map(g => `<option value="${g}">${g}</option>`).join('');
+        }
+
+        // 筛选表格
+        function filterTable() {
+            renderTable();
+        }
+
+        // 快速加分模式
+        function toggleQuickMode() {
+            quickMode = !quickMode;
+            const btn = document.querySelector('.quick-mode');
+            const text = document.getElementById('quickModeText');
+
+            if (quickMode) {
+                btn.classList.add('active');
+                text.textContent = '退出快速模式';
+                showToast('快速加分模式已开启');
+            } else {
+                btn.classList.remove('active');
+                text.textContent = '快速加分模式';
+                showToast('快速加分模式已关闭');
+            }
+        }
+
+        // 显示添加学生模态框
+        function showAddStudentModal() {
+            const modal = document.getElementById('addStudentModal');
+            modal.classList.add('show');
+
+            // 更新组别选项
+            const data = students[currentClass] || [];
+            const groups = [...new Set(data.map(s => s.team))].sort();
+            const select = document.getElementById('newStudentGroup');
+
+            select.innerHTML = '<option value="">请选择组别</option>' +
+                groups.map(g => `<option value="${g}">${g}</option>`).join('') +
+                '<option value="new">新建组别...</option>';
+        }
+
+        // 关闭模态框
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('show');
+        }
+
+        // 添加学生
+        async function addStudent() {
+            const id = document.getElementById('newStudentId').value.trim();
+            const name = document.getElementById('newStudentName').value.trim();
+            let group = document.getElementById('newStudentGroup').value;
+
+            if (!id || !name) {
+                showToast('请填写学号和姓名');
+                return;
+            }
+
+            if (group === 'new') {
+                group = prompt('请输入新组别名称：');
+                if (!group) return;
+            }
+
+            if (!students[currentClass]) {
+                students[currentClass] = [];
+            }
+
+            // 检查学号是否已存在
+            if (students[currentClass].find(s => s.id === id)) {
+                showToast('该学号已存在');
+                return;
+            }
+
+            const newStudentData = {
+                class_id: currentClass,
+                student_id: id,
+                name: name,
+                daily_score: 0,
+                group_score: 0,
+                performance_score: 0,
+                team_name: group || '未分组'
+            };
+
+            try {
+                // 检查 Supabase 客户端是否可用
+                if (!supabaseClient) {
+                    throw new Error('Supabase 客户端未初始化');
+                }
+
+                showToast('正在添加学生...', 'info');
+                const { data, error } = await supabaseClient
+                    .from('class_scores')
+                    .insert([newStudentData])
+                    .select(); // select() is optional here, but can be useful to get the inserted row back
+
+                if (error) {
+                    // Check for unique constraint violation (duplicate student_id for the class_id)
+                    if (error.code === '23505') { // PostgreSQL unique violation error code
+                        showToast('错误：该学号已存在于当前班级。', 'error');
+                    } else {
+                        throw error;
+                    }
+                    return; // Stop execution if there was an error
+                }
+
+                // If insert was successful, then update the local students array
+                if (data && data.length > 0) {
+                    students[currentClass].push({
+                        id: data[0].student_id,
+                        name: data[0].name,
+                        daily: data[0].daily_score,
+                        group: data[0].group_score,
+                        performance: data[0].performance_score,
+                        team: data[0].team_name || '未分组'
+                    });
+                    showToast('学生添加成功', 'success');
+                } else {
+                    // Fallback if data is not returned, though with .select() it should be
+                    // Or handle cases where insert might not return data as expected
+                    students[currentClass].push({
+                        id: id, name: name, daily: 0, group: 0, performance: 0, team: group || '未分组'
+                    });
+                    showToast('学生已添加到本地，但同步确认失败。请刷新查看。', 'warning');
+                }
+
+            } catch (error) {
+                console.error('添加学生失败:', error);
+                showToast('添加学生失败: ' + error.message, 'error');
+                return; // Stop execution if there was an error
+            }
+
+            renderTable();
+            updateStats();
+            updateGroupFilter();
+            closeModal('addStudentModal');
+            showToast('学生添加成功');
+
+            // 清空表单
+            document.getElementById('newStudentId').value = '';
+            document.getElementById('newStudentName').value = '';
+            document.getElementById('newStudentGroup').value = '';
+        }
+
+        // 删除学生
+        async function deleteStudent(studentId) {
+            if (confirm('确定要删除该学生吗？')) {
+                try {
+                    // 检查 Supabase 客户端是否可用
+                    if (!supabaseClient) {
+                        throw new Error('Supabase 客户端未初始化');
+                    }
+
+                    showToast('正在删除学生...', 'info');
+                    const { data, error } = await supabaseClient
+                        .from('class_scores')
+                        .delete()
+                        .eq('class_id', currentClass)
+                        .eq('student_id', studentId);
+
+                    if (error) throw error;
+
+                    // 如果数据库删除成功，则更新本地数据
+                    const index = students[currentClass].findIndex(s => s.id === studentId);
+                    if (index > -1) {
+                        students[currentClass].splice(index, 1);
+                    } else {
+                        // This case should ideally not happen if UI is in sync with local data
+                        console.warn('学生已从数据库删除，但在本地未找到，可能数据已不同步。');
+                    }
+                    showToast('学生已删除', 'success');
+
+                } catch (error) {
+                    console.error('删除学生失败:', error);
+                    showToast('删除学生失败: ' + error.message, 'error');
+                    return; // Stop execution if there was an error
+                }
+
+                renderTable();
+                updateStats();
+            }
+        }
+
+        // 显示导出菜单
+        function showExportMenu() {
+            document.getElementById('exportModal').classList.add('show');
+        }
+
+        // 导出为Excel (CSV格式)
+        function exportToExcel() {
+            // 准备CSV内容
+            let csv = '\ufeff'; // UTF-8 BOM，确保Excel正确识别中文
+
+            // 添加标题
+            csv += `课堂分数统计表 - 导出时间：${new Date().toLocaleString()}\n\n`;
+
+            // 遍历所有班级
+            for (const [className, classData] of Object.entries(students)) {
+                if (classData.length === 0) continue;
+
+                // 班级标题
+                const classLabel = className === 'class1' ? '计算机2401班' :
+                    className === 'class2' ? '计算机2402班' : '计算机2403班';
+                csv += `\n${classLabel}\n`;
+
+                // 表头
+                csv += '序号,学号,姓名,平时总分(50满),小组活动(30满),课堂表现(20满),总分,组别\n';
+
+                // 数据行
+                classData.forEach((student, index) => {
+                    const total = student.daily + student.group + student.performance;
+                    csv += `${index + 1},${student.id},${student.name},${student.daily},${student.group},${student.performance},${total},${student.team}\n`;
+                });
+
+                // 统计信息
+                const stats = calculateClassStats(classData);
+                csv += `\n统计信息：\n`;
+                csv += `学生总数,${stats.total}\n`;
+                csv += `平时分平均,${stats.dailyAvg}\n`;
+                csv += `小组分平均,${stats.groupAvg}\n`;
+                csv += `课堂分平均,${stats.perfAvg}\n`;
+                csv += `总分平均,${stats.totalAvg}\n`;
+                csv += `未参与小组活动,${stats.noGroup}人\n`;
+                csv += `未参与课堂,${stats.noPerf}人\n`;
+                csv += `\n`;
+            }
+
+            // 下载文件
+            downloadFile(csv, `课堂分数_${new Date().toISOString().slice(0, 10)}.csv`, 'text/csv;charset=utf-8');
+            closeModal('exportModal');
+            showToast('Excel文件导出成功');
+        }
+
+        // 仅导出当前班级Excel
+        function exportCurrentClassExcel() {
+            const classData = students[currentClass] || [];
+            if (classData.length === 0) {
+                showToast('当前班级没有数据');
+                return;
+            }
+
+            let csv = '\ufeff'; // UTF-8 BOM
+
+            // 班级标题
+            const classLabel = currentClass === 'class1' ? '计算机2401班' :
+                currentClass === 'class2' ? '计算机2402班' : '计算机2403班';
+            csv += `${classLabel} - 课堂分数统计表\n`;
+            csv += `导出时间：${new Date().toLocaleString()}\n\n`;
+
+            // 表头
+            csv += '序号,学号,姓名,平时总分(50满),小组活动(30满),课堂表现(20满),总分,组别\n';
+
+            // 按组别排序
+            const sortedData = [...classData].sort((a, b) => {
+                if (a.team === b.team) {
+                    return a.id.localeCompare(b.id);
+                }
+                return a.team.localeCompare(b.team);
+            });
+
+            // 数据行
+            sortedData.forEach((student, index) => {
+                const total = student.daily + student.group + student.performance;
+                csv += `${index + 1},${student.id},${student.name},${student.daily},${student.group},${student.performance},${total},${student.team}\n`;
+            });
+
+            // 统计信息
+            const stats = calculateClassStats(classData);
+            csv += `\n\n统计信息\n`;
+            csv += `项目,数值\n`;
+            csv += `学生总数,${stats.total}人\n`;
+            csv += `平时分平均,${stats.dailyAvg}分\n`;
+            csv += `小组分平均,${stats.groupAvg}分\n`;
+            csv += `课堂分平均,${stats.perfAvg}分\n`;
+            csv += `总分平均,${stats.totalAvg}分\n`;
+            csv += `最高总分,${stats.maxTotal}分\n`;
+            csv += `最低总分,${stats.minTotal}分\n`;
+            csv += `未参与小组活动,${stats.noGroup}人\n`;
+            csv += `未参与课堂,${stats.noPerf}人\n`;
+
+            // 各组统计
+            csv += `\n\n各组统计\n`;
+            csv += `组别,人数,平均总分\n`;
+            const groupStats = calculateGroupStats(classData);
+            for (const [group, stat] of Object.entries(groupStats)) {
+                csv += `${group},${stat.count}人,${stat.avg}分\n`;
+            }
+
+            // 下载文件
+            downloadFile(csv, `${classLabel}_分数统计_${new Date().toISOString().slice(0, 10)}.csv`, 'text/csv;charset=utf-8');
+            closeModal('exportModal');
+            showToast('当前班级Excel文件导出成功');
+        }
+
+        // 导出为JSON (原功能)
+        function exportToJSON() {
+            const dataStr = JSON.stringify(students, null, 2);
+            downloadFile(dataStr, `课堂分数_备份_${new Date().toISOString().slice(0, 10)}.json`, 'application/json');
+            closeModal('exportModal');
+            showToast('JSON备份文件导出成功');
+        }
+
+        // 通用下载文件函数
+        function downloadFile(content, fileName, mimeType) {
+            const blob = new Blob([content], { type: mimeType });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        }
+
+        // 计算班级统计数据
+        function calculateClassStats(classData) {
+            const totals = classData.map(s => s.daily + s.group + s.performance);
+            return {
+                total: classData.length,
+                dailyAvg: (classData.reduce((sum, s) => sum + s.daily, 0) / classData.length).toFixed(1),
+                groupAvg: (classData.reduce((sum, s) => sum + s.group, 0) / classData.length).toFixed(1),
+                perfAvg: (classData.reduce((sum, s) => sum + s.performance, 0) / classData.length).toFixed(1),
+                totalAvg: (totals.reduce((sum, t) => sum + t, 0) / totals.length).toFixed(1),
+                maxTotal: Math.max(...totals).toFixed(1),
+                minTotal: Math.min(...totals).toFixed(1),
+                noGroup: classData.filter(s => s.group === 0).length,
+                noPerf: classData.filter(s => s.performance === 0).length
+            };
+        }
+
+        // 计算各组统计数据
+        function calculateGroupStats(classData) {
+            const groups = {};
+            classData.forEach(student => {
+                if (!groups[student.team]) {
+                    groups[student.team] = { count: 0, total: 0 };
+                }
+                groups[student.team].count++;
+                groups[student.team].total += student.daily + student.group + student.performance;
+            });
+
+            const result = {};
+            for (const [group, data] of Object.entries(groups)) {
+                result[group] = {
+                    count: data.count,
+                    avg: (data.total / data.count).toFixed(1)
+                };
+            }
+            return result;
+        }
+
+        // 导出数据 (已废弃，保留兼容性)
+        function exportData() {
+            showExportMenu();
+        }
+
+        // 显示导入信息
+        function showImportInfo() {
+            document.getElementById('importModal').classList.add('show');
+        }
+
+        // 导入数据
+        function importData() {
+            closeModal('importModal');
+            document.getElementById('importFile').click();
+        }
+
+        // 处理导入
+        function handleImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            const fileName = file.name.toLowerCase();
+
+            reader.onload = function (e) {
+                try {
+                    if (fileName.endsWith('.json')) {
+                        // JSON格式导入
+                        const imported = JSON.parse(e.target.result);
+                        students = imported;
+                        saveData();
+                        renderTable();
+                        updateStats();
+                        updateGroupFilter();
+                        showToast('JSON数据导入成功');
+                    } else if (fileName.endsWith('.csv')) {
+                        // CSV格式导入
+                        importFromCSV(e.target.result);
+                    } else {
+                        showToast('不支持的文件格式');
+                    }
+                } catch (error) {
+                    showToast('导入失败：文件格式错误');
+                    console.error(error);
+                }
+            };
+            reader.onerror = function () {
+                showToast('导入失败：文件读取错误');
+            };
+            reader.readAsText(file, 'UTF-8');
+
+            // 清空input
+            event.target.value = '';
+        }
+
+        // 从CSV导入数据
+        function importFromCSV(csvContent) {
+            try {
+                // 移除BOM标记
+                csvContent = csvContent.replace(/^\ufeff/, '');
+
+                // 按行分割
+                const lines = csvContent.split('\n').filter(line => line.trim());
+
+                // 查找表头行
+                let headerIndex = -1;
+                for (let i = 0; i < lines.length; i++) {
+                    if (lines[i].includes('序号') && lines[i].includes('学号') && lines[i].includes('姓名')) {
+                        headerIndex = i;
+                        break;
+                    }
+                }
+
+                if (headerIndex === -1) {
+                    showToast('CSV格式错误：未找到表头');
+                    return;
+                }
+
+                // 清空当前班级数据
+                if (!students[currentClass]) {
+                    students[currentClass] = [];
+                }
+
+                // 解析数据行
+                let importCount = 0;
+                for (let i = headerIndex + 1; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (!line || line.includes('统计信息') || line.includes('各组统计')) break;
+
+                    const values = line.split(',');
+                    if (values.length >= 8) {
+                        const studentId = values[1].trim();
+
+                        // 检查是否已存在
+                        const existingIndex = students[currentClass].findIndex(s => s.id === studentId);
+                        const studentData = {
+                            id: studentId,
+                            name: values[2].trim(),
+                            daily: parseFloat(values[3]) || 0,
+                            group: parseFloat(values[4]) || 0,
+                            performance: parseFloat(values[5]) || 0,
+                            team: values[7].trim() || '未分组'
+                        };
+
+                        if (existingIndex >= 0) {
+                            // 更新现有学生
+                            students[currentClass][existingIndex] = studentData;
+                        } else {
+                            // 添加新学生
+                            students[currentClass].push(studentData);
+                        }
+                        importCount++;
+                    }
+                }
+
+                saveData();
+                renderTable();
+                updateStats();
+                updateGroupFilter();
+                showToast(`成功导入 ${importCount} 条数据`);
+
+            } catch (error) {
+                showToast('CSV导入失败');
+                console.error(error);
+            }
+        }
+
+        // 导入Excel文件
+        async function importFromExcel(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            try {
+                showToast('正在导入Excel文件，请稍候...', 'info');
+
+                // 读取Excel文件
+                const data = await readExcelFile(file);
+
+                // 处理导入的数据
+                const allRecordsToUpsert = [];
+                let totalImportedCount = 0;
+                let importedClassIds = [];
+
+                for (const sheetName in data) {
+                    if (data.hasOwnProperty(sheetName)) {
+                        const classId = sheetName;
+                        const sheetData = data[sheetName];
+                        importedClassIds.push(classId);
+
+                        sheetData.forEach(row => {
+                            // 假设Excel中的列名为：学号, 姓名, 平时分, 小组分, 课堂分, 组别
+                            // 请根据实际Excel列名调整这里的row.FieldName
+                            const studentId = row.学号 ? row.学号.toString().trim() : null;
+                            const studentName = row.姓名 ? row.姓名.toString().trim() : null;
+
+                            if (studentId && studentName) {
+                                allRecordsToUpsert.push({
+                                    class_id: classId,
+                                    student_id: studentId,
+                                    name: studentName,
+                                    daily_score: parseFloat(row.平时分) || 0,
+                                    group_score: parseFloat(row.小组分) || 0,
+                                    performance_score: parseFloat(row.课堂分) || 0,
+                                    team_name: row.组别 ? row.组别.toString().trim() : '未分组'
+                                });
+                                totalImportedCount++;
+                            }
+                        });
+                    }
+                }
+
+                if (allRecordsToUpsert.length > 0) {
+                    // 检查 Supabase 客户端是否可用
+                    if (!supabaseClient) {
+                        throw new Error('Supabase 客户端未初始化');
+                    }
+
+                    showToast(`共找到 ${totalImportedCount} 条记录，跨越 ${importedClassIds.length} 个班级。正在上传到数据库...`, 'info');
+                    const { data: upsertData, error: upsertError } = await supabaseClient
+                        .from('class_scores')
+                        .upsert(allRecordsToUpsert, {
+                            onConflict: 'class_id, student_id',
+                            ignoreDuplicates: false // Ensure existing records are updated
+                        });
+
+                    if (upsertError) {
+                        console.error('数据库批量导入/更新失败:', upsertError);
+                        showToast('数据上传失败: ' + upsertError.message, 'error');
+                        return;
+                    }
+
+                    showToast(`成功导入/更新 ${totalImportedCount} 条学生记录到数据库！`, 'success');
+
+                    // 更新班级选择器，添加新导入的班级
+                    const classSelect = document.getElementById('classSelect');
+                    const existingOptions = Array.from(classSelect.options).map(opt => opt.value);
+
+                    // 添加新导入的班级到选择器
+                    importedClassIds.forEach(classId => {
+                        if (!existingOptions.includes(classId)) {
+                            const option = document.createElement('option');
+                            option.value = classId;
+                            option.textContent = classId; // 可以根据需要调整显示名称
+                            classSelect.appendChild(option);
+                        }
+                    });
+
+                    // 导入成功后的数据加载处理
+                    if (importedClassIds.includes(currentClass)) {
+                        // 如果当前班级在导入的班级中，重新加载当前班级数据
+                        await loadData();
+                        showToast('当前班级数据已更新。', 'info');
+                    } else if (importedClassIds.length > 0) {
+                        // 询问用户是否要切换到新导入的班级
+                        if (confirm(`是否切换到新导入的班级？${importedClassIds[0]}`)) {
+                            currentClass = importedClassIds[0];
+                            classSelect.value = currentClass;
+                            await loadData();
+                        } else {
+                            showToast('其他班级数据已导入，可以从班级选择器中选择查看。', 'info');
+                        }
+                    }
+                    // renderTable(); // loadData会调用
+                    // updateGroupFilter(); // loadData会调用
+                    // updateStats(); // loadData会调用
+
+                } else {
+                    showToast('未在Excel文件中找到有效数据，或数据格式不正确。请检查Excel列名是否为：学号, 姓名, 平时分, 小组分, 课堂分, 组别', 'warning');
+                }
+
+            } catch (error) {
+                console.error('导入Excel失败:', error);
+                showToast('导入失败: ' + error.message, 'error');
+            } finally {
+                // 重置文件输入，允许重复导入同一文件
+                event.target.value = '';
+            }
+        }
+
+        // 读取Excel文件
+        function readExcelFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+
+                reader.onload = function (e) {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const allSheetsData = {};
+                        workbook.SheetNames.forEach(sheetName => {
+                            const worksheet = workbook.Sheets[sheetName];
+                            const jsonData = XLSX.utils.sheet_to_json(worksheet, { raw: false, defval: null }); // raw:false ensures dates are parsed, defval handles empty cells
+                            allSheetsData[sheetName] = jsonData;
+                        });
+                        resolve(allSheetsData);
+                    } catch (error) {
+                        reject(error);
+                    }
+                };
+
+                reader.onerror = function () {
+                    reject(new Error('文件读取失败'));
+                };
+
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+
+        // 保存到本地存储
+        function saveToLocalStorage() {
+            try {
+                const localData = {
+                    students: students,
+                    currentClass: currentClass,
+                    quickMode: quickMode,
+                    lastSaved: new Date().toISOString()
+                };
+                localStorage.setItem('classroomScores', JSON.stringify(localData));
+            } catch (e) {
+                console.error('保存到本地存储失败:', e);
+            }
+        }
+
+        // 打印报告
+        function printReport() {
+            window.print();
+        }
+
+        // 显示提示
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            if (type === 'error') {
+                toast.style.background = '#dc3545';
+                toast.style.color = 'white';
+            } else if (type === 'success') {
+                toast.style.background = '#28a745';
+                toast.style.color = 'white';
+            } else {
+                toast.style.background = '#333';
+                toast.style.color = 'white';
+            }
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // 键盘快捷键
+        document.addEventListener('keydown', (e) => {
+            // Ctrl+S 保存
+            if (e.ctrlKey && e.key === 's') {
+                e.preventDefault();
+                saveData();
+                showToast('数据已保存');
+            }
+
+            // Ctrl+E 导出
+            if (e.ctrlKey && e.key === 'e') {
+                e.preventDefault();
+                showExportMenu();
+            }
+
+            // Ctrl+I 导入
+            if (e.ctrlKey && e.key === 'i') {
+                e.preventDefault();
+                showImportInfo();
+            }
+
+            // Ctrl+F 搜索
+            if (e.ctrlKey && e.key === 'f') {
+                e.preventDefault();
+                document.getElementById('searchInput').focus();
+            }
+
+            // Escape 关闭模态框
+            if (e.key === 'Escape') {
+                const modals = document.querySelectorAll('.modal.show');
+                modals.forEach(modal => modal.classList.remove('show'));
+            }
+        });
+
+        // 点击模态框外部关闭
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.remove('show');
+                }
+            });
+        });
+
+        // 添加帮助提示
+        console.log('课堂加分管理系统 - 使用说明：');
+        console.log('- 点击 +/- 按钮快速加减分');
+        console.log('- Ctrl+E：导出数据（支持Excel）');
+        console.log('- Ctrl+I：导入数据');
+        console.log('- Ctrl+S：保存数据');
+        console.log('- Ctrl+F：搜索学生');
+        console.log('- 数据自动保存在浏览器本地');
+        console.log('- 支持导出为Excel(CSV)格式，可直接用Excel打开编辑');
+
+        // 页面加载完成后初始化
+        window.onload = init;
+    </script>
+</body>
+
+</html>
